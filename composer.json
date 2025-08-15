@@ -1,0 +1,25 @@
+{
+    "name": "bangsamu/visitor-counter",
+    "description": "Simple Laravel visitor counter package",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Bangsamu\\VisitorCounter\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bangsamu\\VisitorCounter\\VisitorCounterServiceProvider"
+            ],
+            "aliases": {
+                "VisitorCounter": "Bangsamu\\VisitorCounter\\Facades\\VisitorCounter"
+            }
+        }
+    },
+    "require": {
+        "php": ">=8.0",
+        "illuminate/support": "^8.0|^9.0|^10.0|^11.0"
+    }
+}
