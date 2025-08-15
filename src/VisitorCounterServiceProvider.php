@@ -5,6 +5,7 @@ namespace Bangsamu\VisitorCounter;
 use Illuminate\Support\ServiceProvider;
 use Bangsamu\VisitorCounter\Middleware\CountVisitor;
 use Bangsamu\VisitorCounter\Models\Visitor;
+use Illuminate\Contracts\Http\Kernel;
 
 class VisitorCounterServiceProvider extends ServiceProvider
 {
@@ -62,8 +63,12 @@ class VisitorCounterServiceProvider extends ServiceProvider
 
         // Middleware global
         // $this->app['router']->pushMiddlewareToGroup('web', Middleware\CountVisitor::class);
-        $this->app['router']->pushMiddlewareToGroup('web', CountVisitor::class);
+        // $this->app['router']->pushMiddlewareToGroup('web', CountVisitor::class);
         // $this->app['router']->pushMiddlewareToGroup('web', Middleware\RecordVisitor::class);
+
+                // Daftarkan middleware global
+        $kernel = $this->app->make(Kernel::class);
+        $kernel->pushMiddleware(CountVisitor::class);
 
     }
 
