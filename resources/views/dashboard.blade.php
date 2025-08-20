@@ -19,13 +19,14 @@
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: {!! json_encode($stats->pluck('visit_date')->reverse()) !!},
+            labels: {!! json_encode($stats->pluck('visit_date')->reverse()->values()) !!},
             datasets: [{
                 label: 'Visitors per Day',
-                data: {!! json_encode($stats->pluck('total')->reverse()) !!},
+                data: {!! json_encode($stats->pluck('total')->reverse()->values()) !!},
                 backgroundColor: 'rgba(54, 162, 235, 0.5)'
             }]
         }
     });
 </script>
+
 @endpush
