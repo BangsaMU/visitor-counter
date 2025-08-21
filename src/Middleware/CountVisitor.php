@@ -21,9 +21,10 @@ class CountVisitor
         $userId    = Auth::check() ? Auth::id() : null;
 
         $mode = config('Visitor-counter.mode', 'unique_daily');
+        $cache_time = config('Visitor-counter.cache_time', 10);
 
         // Cegah hit berulang dalam 10 menit
-        $cacheKey = "visitor:{$ip}:{$today}";
+        $cacheKey = "visitor:{$userId}:{$ip}:{$today}:{$path}";
 
         if (!Cache::has($cacheKey)) {
             if ($mode === 'unique_daily') {
@@ -51,7 +52,7 @@ class CountVisitor
                     'referer'    => $request->header('Referer')
                 ]);
             }
-            Cache::put($cacheKey, true, now()->addMinutes(10));
+            Cache::put($cacheKey, true, now()->addMinutes($cache_time));
         }
 
         return $response;
