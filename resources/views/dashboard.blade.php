@@ -1,4 +1,14 @@
-@extends((config('app.themes') == '_tabler' ? 'master::layouts.tabler' : 'adminlte::page'))
+@php
+    if (config('app.themes') == '_tabler') {
+        // Cek apakah view "layouts.tabler" ada
+        $themeLayout = view()->exists('layouts.tabler')
+            ? 'layouts.tabler'
+            : 'master::layouts.tabler';
+    } else {
+        $themeLayout = 'adminlte::page';
+    }
+@endphp
+@extends($themeLayout)
 
 @section('title', 'Visitor Dashboard')
 
