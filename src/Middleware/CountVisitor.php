@@ -74,7 +74,7 @@ class CountVisitor
             ?? $request->header('X-Real-IP')
             ?? $request->ip();
 
-        // 2️⃣ Jika IP private, ambil IP publik server (cache 6 jam)
+        // 2️⃣ Jika IP private, ambil IP publik server (cache 6 jam) tambahkan CF
         if (self::isPrivateIp($ip)) {
             return cache()->remember('server_public_ip', now()->addHours(6), function () {
                 try {
