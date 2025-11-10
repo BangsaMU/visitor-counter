@@ -6,6 +6,8 @@ use Closure;
 use Bangsamu\VisitorCounter\Models\Visitor;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CountVisitor
 {
@@ -14,7 +16,11 @@ class CountVisitor
         // Eksekusi request dulu supaya auth sudah diproses
         $response = $next($request);
 
-        $ip        = $request->ip();
+        // =============================
+        // 1️⃣ Dapatkan IP Asli (Real Client IP)
+        // =============================
+
+        $ip = $this->getClientPublicIp($request);
         $userAgent = substr($request->header('User-Agent'), 0, 255);
         $path      = $request->path();
         $today     = now()->toDateString();
@@ -38,23 +44,62 @@ class CountVisitor
                         'user_agent' => $userAgent,
                         'path'       => $path,
                         'visit_date' => $today,
-                        'referer'    => $request->header('Referer')
+                        'referer'    => $request->header('Referer'),
                     ]);
                 }
             } elseif ($mode === 'log_all') {
-                // Catat semua request
                 Visitor::create([
                     'user_id'    => $userId,
                     'ip'         => $ip,
                     'user_agent' => $userAgent,
                     'path'       => $path,
                     'visit_date' => $today,
-                    'referer'    => $request->header('Referer')
+                    'referer'    => $request->header('Referer'),
                 ]);
             }
+
             Cache::put($cacheKey, true, now()->addMinutes($cache_time));
         }
 
         return $response;
+    }
+
+    /**
+     * Ambil IP publik dari request atau fallback dari layanan eksternal
+     */
+    protected static function getClientPublicIp($request): string
+    {
+        // 1️⃣ Ambil IP dari header proxy dulu
+        $ip = $request->header('X-Forwarded-For')
+            ?? $request->header('X-Real-IP')
+            ?? $request->ip();
+
+        // 2️⃣ Jika IP private, ambil IP publik server (tapi cached)
+        if (self::isPrivateIp($ip)) {
+            return cache()->remember('server_public_ip', now()->addHours(6), function () {
+                try {
+                    $response = Http::timeout(2)->get('https://api.ipify.org');
+                    if ($response->successful()) {
+                        $publicIp = trim($response->body());
+                        if (filter_var($publicIp, FILTER_VALIDATE_IP)) {
+                            return $publicIp;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Gagal ambil IP publik: '.$e->getMessage());
+                }
+                return '0.0.0.0';
+            });
+        }
+
+        return $ip;
+    }
+
+    /**
+     * Cek apakah IP adalah IP lokal/private
+     */
+    protected function isPrivateIp($ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 }
