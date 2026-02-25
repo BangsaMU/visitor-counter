@@ -11,4 +11,5 @@ return [
     */
     'mode' => env('VISITOR_COUNTER_MODE', 'log_all'),
     'cache_time' => env('VISITOR_COUNTER_CACHE_TIME', 10),
+    'trace_ip' => env('VISITOR_TRACE_IP', FALSE),
 ];

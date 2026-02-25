@@ -75,7 +75,7 @@ class CountVisitor
             ?? $request->ip();
 
         // 2️⃣ Jika IP private, ambil IP publik server (cache 6 jam) tambahkan CF
-        if (self::isPrivateIp($ip)) {
+        if (self::isPrivateIp($ip)&&config('Visitor-counter.cache_time')==TRUE) {
             return cache()->remember('server_public_ip', now()->addHours(6), function () {
                 try {
                     // 🌩️ Coba ambil dari Cloudflare

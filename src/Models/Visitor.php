@@ -13,7 +13,7 @@ class Visitor extends Model
     ];
 
 
-    public $table = "visitors";
+    protected $table = "visitors";
     protected static $hasCheckedTable = false;
 
     protected static function boot()
