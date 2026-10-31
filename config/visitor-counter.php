@@ -11,6 +11,13 @@ return [
     */
     'enabled' => (bool) env('VISITOR_COUNTER_ENABLED', true),
 
+    /*
+     * Saklar dari dashboard (tombol Nonaktifkan/Aktifkan) dan `php artisan visitor-counter:disable|enable`: file penanda,
+     * ada = pencatatan mati. null = storage/framework/visitor-counter-{APP_ENV}-disabled.json. Lebih dari satu server
+     * aplikasi: arahkan ke folder bersama.
+     */
+    'switch_path' => env('VISITOR_COUNTER_SWITCH_PATH'),
+
     /* null = koneksi default app */
     'connection' => env('VISITOR_COUNTER_DB_CONNECTION'),
 

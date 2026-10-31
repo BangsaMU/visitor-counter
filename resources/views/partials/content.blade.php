@@ -11,6 +11,49 @@
 @endphp
 
 <div class="container-fluid" id="visitorCounterDashboard">
+    @if (session('visitor_counter_status'))
+        <div class="alert alert-success py-2">{{ session('visitor_counter_status') }}</div>
+    @endif
+    @if (session('visitor_counter_error'))
+        <div class="alert alert-danger py-2">{{ session('visitor_counter_error') }}</div>
+    @endif
+
+    <div class="card shadow-sm mb-3" id="visitorCounterSwitch">
+        <div class="card-body d-flex flex-wrap align-items-center gap-2">
+            @if (! $recording['config_enabled'])
+                <span class="badge text-bg-secondary">Nonaktif</span>
+                <span class="small text-secondary">Pencatatan dimatikan lewat konfigurasi (<code>VISITOR_COUNTER_ENABLED=false</code>); nyalakan dari .env.</span>
+            @elseif ($recording['enabled'])
+                <span class="badge text-bg-success">Pencatatan aktif</span>
+                <span class="small text-secondary">Setiap request disimpan ke database.</span>
+                <form method="POST" action="{{ route('visitor-counter.toggle') }}" class="ms-auto"
+                      onsubmit="return confirm('Nonaktifkan pencatatan? Request tidak disimpan sampai diaktifkan lagi.');">
+                    @csrf
+                    <input type="hidden" name="enabled" value="0">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Nonaktifkan pencatatan</button>
+                </form>
+            @else
+                @php
+                    $disabledAt = $recording['disabled']['at'] ?? null;
+                    $disabledBy = $recording['disabled']['by'] ?? null;
+                    $disabledNote = trim(
+                        ($disabledAt ? 'sejak '.\Illuminate\Support\Carbon::parse($disabledAt)->format('d-m-Y H:i') : '')
+                        .($disabledBy ? ' oleh '.$disabledBy : '')
+                    );
+                @endphp
+                <span class="badge text-bg-warning">Pencatatan nonaktif</span>
+                <span class="small text-secondary">
+                    Tidak ada request yang disimpan ke database{{ $disabledNote !== '' ? ' '.$disabledNote : '' }}. Data lama tetap bisa dilihat.
+                </span>
+                <form method="POST" action="{{ route('visitor-counter.toggle') }}" class="ms-auto">
+                    @csrf
+                    <input type="hidden" name="enabled" value="1">
+                    <button type="submit" class="btn btn-success btn-sm">Aktifkan pencatatan</button>
+                </form>
+            @endif
+        </div>
+    </div>
+
     <form method="GET" class="card shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-2 align-items-end">

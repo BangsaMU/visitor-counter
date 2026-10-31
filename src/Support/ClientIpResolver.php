@@ -20,7 +20,10 @@ final class ClientIpResolver
 
     public const REPORT_ROUTE = 'visitor-counter.client-ip';
 
-    public function __construct(private readonly ReportedClientIp $reported) {}
+    public function __construct(
+        private readonly ReportedClientIp $reported,
+        private readonly RecordingSwitch $switch,
+    ) {}
 
     public static function isPublic(string $ip): bool
     {
@@ -49,7 +52,7 @@ final class ClientIpResolver
      */
     public function shouldReport(Request $request): bool
     {
-        if (! config('visitor-counter.enabled', true) || ! $request->hasSession() || ! Route::has(self::REPORT_ROUTE)) {
+        if (! $this->switch->enabled() || ! $request->hasSession() || ! Route::has(self::REPORT_ROUTE)) {
             return false;
         }
 

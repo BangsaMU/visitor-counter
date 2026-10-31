@@ -2,20 +2,23 @@
 
 namespace Bangsamu\VisitorCounter\Http\Controllers;
 
+use Bangsamu\VisitorCounter\Events\RecordingToggled;
 use Bangsamu\VisitorCounter\Models\Visitor;
 use Bangsamu\VisitorCounter\Support\DashboardLayout;
+use Bangsamu\VisitorCounter\Support\RecordingSwitch;
 use Bangsamu\VisitorCounter\Support\UserDirectory;
 use Bangsamu\VisitorCounter\Support\VisitFilters;
 use Bangsamu\VisitorCounter\VisitorStats;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 final class DashboardController
 {
-    public function index(Request $request, UserDirectory $users): View
+    public function index(Request $request, UserDirectory $users, RecordingSwitch $switch): View
     {
         Gate::authorize((string) config('visitor-counter.dashboard.gate', 'viewVisitorCounter'));
 
@@ -49,6 +52,11 @@ final class DashboardController
 
         return view('visitor-counter::dashboard', [
             'layout' => DashboardLayout::resolve(),
+            'recording' => [
+                'enabled' => $switch->enabled(),
+                'config_enabled' => $switch->configEnabled(),
+                'disabled' => $switch->disabledInfo(),
+            ],
             'filters' => $filters,
             'summary' => $summary,
             'topTargets' => $topTargets,
@@ -56,6 +64,30 @@ final class DashboardController
             'visits' => $visits,
             'userLabels' => $users->labels([...$topUsers->pluck('user_id'), ...$visits->getCollection()->pluck('user_id')]),
         ]);
+    }
+
+    /**
+     * Tombol Nonaktifkan/Aktifkan: saat nonaktif tidak ada request yang disimpan ke database.
+     */
+    public function toggle(Request $request, RecordingSwitch $switch, UserDirectory $users): RedirectResponse
+    {
+        Gate::authorize((string) config('visitor-counter.dashboard.gate', 'viewVisitorCounter'));
+
+        $request->validate(['enabled' => ['required', 'boolean']]);
+        $enabled = $request->boolean('enabled');
+        $redirect = redirect()->route('visitor-counter.index');
+
+        if (! $switch->configEnabled()) {
+            return $redirect->with('visitor_counter_error', 'Pencatatan dimatikan lewat konfigurasi (VISITOR_COUNTER_ENABLED=false), tidak bisa diubah dari sini.');
+        }
+
+        $user = $request->user();
+        $enabled ? $switch->enable() : $switch->disable($users->labelFor($user));
+        event(new RecordingToggled($enabled, $user, RecordingToggled::SOURCE_DASHBOARD));
+
+        return $redirect->with('visitor_counter_status', $enabled
+            ? 'Pencatatan visitor diaktifkan.'
+            : 'Pencatatan visitor dinonaktifkan: request tidak disimpan ke database sampai diaktifkan lagi.');
     }
 
     /**

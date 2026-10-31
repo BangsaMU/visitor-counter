@@ -48,6 +48,24 @@ Bila app sudah punya pelapor IP sendiri yang menyimpan `['ip' => ..., 'at' => ti
 di `client_ip.fallback_session_keys` (bawaan: `reported_client_ip`). Layout yang tidak ingin disisipi otomatis: set
 `VISITOR_COUNTER_INJECT_SCRIPT=false` lalu pasang `<x-visitor-counter::client-ip />` sebelum `</body>`.
 
+## Menyalakan / mematikan pencatatan
+
+Dashboard punya tombol **Nonaktifkan pencatatan / Aktifkan pencatatan** (gate dashboard yang sama), atau lewat artisan:
+
+```bash
+php artisan visitor-counter:disable
+php artisan visitor-counter:enable
+```
+
+Saat nonaktif, request **tidak menulis apa pun ke database** (tidak ada insert, cek skema, maupun query lain dari paket)
+dan skrip pelapor IP tidak disisipkan. Dashboard tetap bisa dibuka untuk melihat data lama. Status disimpan sebagai file
+penanda `storage/framework/visitor-counter-{APP_ENV}-disabled.json` (seperti `php artisan down`): bertahan setelah
+`cache:clear`/deploy, tanpa query per request. Lebih dari satu server aplikasi: arahkan `VISITOR_COUNTER_SWITCH_PATH` ke
+folder bersama. `VISITOR_COUNTER_ENABLED=false` tetap mematikan pencatatan apa pun status saklarnya.
+
+Setiap perubahan memicu event `Bangsamu\VisitorCounter\Events\RecordingToggled` (`enabled`, `user`, `source` =
+`dashboard`/`console`) untuk dicatat app ke audit log-nya.
+
 ## Akses dashboard
 
 Gate `viewVisitorCounter`. Bawaan paket: user yang punya salah satu ability di `dashboard.abilities` (bawaan `is_root`;
@@ -64,7 +82,8 @@ diganti dengan `php artisan vendor:publish --tag=visitor-counter-views`.
 
 | Variabel | Bawaan | Arti |
 |---|---|---|
-| `VISITOR_COUNTER_ENABLED` | `true` | Matikan pencatatan |
+| `VISITOR_COUNTER_ENABLED` | `true` | Matikan pencatatan (mengalahkan saklar dashboard) |
+| `VISITOR_COUNTER_SWITCH_PATH` | storage/framework | File penanda saklar dashboard/artisan |
 | `VISITOR_COUNTER_RETENTION_DAYS` | `180` | Umur data; `0` = simpan selamanya |
 | `VISITOR_COUNTER_RECORD_AJAX` | `true` | `false` = request AJAX/JSON tidak dicatat |
 | `VISITOR_COUNTER_CLIENT_IP` | `auto` | `auto` / `server` / `browser` |

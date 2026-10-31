@@ -2,10 +2,13 @@
 
 namespace Bangsamu\VisitorCounter;
 
+use Bangsamu\VisitorCounter\Console\DisableCommand;
+use Bangsamu\VisitorCounter\Console\EnableCommand;
 use Bangsamu\VisitorCounter\Console\SyncSchemaCommand;
 use Bangsamu\VisitorCounter\Http\Middleware\RecordVisit;
 use Bangsamu\VisitorCounter\Models\Visitor;
 use Bangsamu\VisitorCounter\Support\ClientIpResolver;
+use Bangsamu\VisitorCounter\Support\RecordingSwitch;
 use Bangsamu\VisitorCounter\Support\ReportedClientIp;
 use Bangsamu\VisitorCounter\Support\UserDirectory;
 use Bangsamu\VisitorCounter\Support\VisitorSchema;
@@ -27,6 +30,7 @@ class VisitorCounterServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/visitor-counter.php', 'visitor-counter');
 
         $this->app->singleton(VisitorSchema::class);
+        $this->app->singleton(RecordingSwitch::class);
         $this->app->singleton(ReportedClientIp::class);
         $this->app->singleton(ClientIpResolver::class);
         $this->app->singleton(UserDirectory::class);
@@ -46,7 +50,7 @@ class VisitorCounterServiceProvider extends ServiceProvider
         $this->registerSchedule();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SyncSchemaCommand::class]);
+            $this->commands([SyncSchemaCommand::class, EnableCommand::class, DisableCommand::class]);
 
             $this->publishes([
                 __DIR__.'/../config/visitor-counter.php' => config_path('visitor-counter.php'),

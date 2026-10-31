@@ -4,6 +4,7 @@ namespace Bangsamu\VisitorCounter;
 
 use Bangsamu\VisitorCounter\Models\Visitor;
 use Bangsamu\VisitorCounter\Support\ClientIpResolver;
+use Bangsamu\VisitorCounter\Support\RecordingSwitch;
 use Bangsamu\VisitorCounter\Support\VisitorSchema;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ final class VisitRecorder
     public function __construct(
         private readonly ClientIpResolver $clientIp,
         private readonly VisitorSchema $schema,
+        private readonly RecordingSwitch $switch,
     ) {}
 
     /**
@@ -61,7 +63,7 @@ final class VisitRecorder
 
     public function shouldRecord(Request $request): bool
     {
-        if (! config('visitor-counter.enabled', true)
+        if (! $this->switch->enabled()
             || ! in_array($request->method(), (array) config('visitor-counter.methods', []), true)) {
             return false;
         }

@@ -19,8 +19,19 @@ abstract class TestCase extends Orchestra
         return [VisitorCounterServiceProvider::class];
     }
 
+    protected string $switchPath;
+
+    protected function tearDown(): void
+    {
+        @unlink($this->switchPath);
+
+        parent::tearDown();
+    }
+
     protected function defineEnvironment($app): void
     {
+        $this->switchPath = sys_get_temp_dir().'/visitor-counter-test-'.bin2hex(random_bytes(6)).'.json';
+        $app['config']->set('visitor-counter.switch_path', $this->switchPath);
         $app['config']->set('database.default', 'testing');
         $app['config']->set('cache.default', 'array');
         $app['config']->set('session.driver', 'array');

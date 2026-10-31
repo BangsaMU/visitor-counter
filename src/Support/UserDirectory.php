@@ -2,6 +2,7 @@
 
 namespace Bangsamu\VisitorCounter\Support;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Throwable;
@@ -33,6 +34,15 @@ final class UserDirectory
 
             return [];
         }
+    }
+
+    public function labelFor(?Authenticatable $user): ?string
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        return $user instanceof Model ? $this->label($user) : '#'.$user->getAuthIdentifier();
     }
 
     /**

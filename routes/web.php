@@ -13,6 +13,7 @@ if (config('visitor-counter.dashboard.enabled', true)) {
             Route::get('/', [DashboardController::class, 'index'])->name('index');
             Route::get('stats', [DashboardController::class, 'stats'])->name('stats');
             Route::get('today', [DashboardController::class, 'today'])->name('today');
+            Route::post('toggle', [DashboardController::class, 'toggle'])->name('toggle');
         });
 }
 
