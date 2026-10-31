@@ -27,7 +27,8 @@ Selesai. Tanpa langkah lain:
   `php artisan visitor-counter:sync-schema`.
 - Dashboard di `/visitor-counter` (route `visitor-counter.index`) dengan filter tanggal, user, halaman/route, IP,
   method, dan status.
-- Baris lebih tua dari 180 hari dihapus `model:prune` setiap hari pukul 02:30 (butuh scheduler berjalan).
+- Baris lebih tua dari 180 hari dihapus `model:prune` setiap hari pukul 02:30 (butuh scheduler berjalan); jadwal
+  pencatatan dan lama penyimpanan bisa diubah dari dashboard (lihat Pengaturan pencatatan).
 
 ## IP klien (server di belakang NAT)
 
@@ -47,6 +48,41 @@ kantor akan terlihat dengan IP publik kantor yang sama; pembeda orangnya adalah 
 Bila app sudah punya pelapor IP sendiri yang menyimpan `['ip' => ..., 'at' => timestamp]` di session, cantumkan key-nya
 di `client_ip.fallback_session_keys` (bawaan: `reported_client_ip`). Layout yang tidak ingin disisipi otomatis: set
 `VISITOR_COUNTER_INJECT_SCRIPT=false` lalu pasang `<x-visitor-counter::client-ip />` sebelum `</body>`.
+
+## Pengaturan pencatatan (jadwal & retensi)
+
+Kartu **Pengaturan pencatatan** di dashboard (gate yang sama) mengatur, tanpa ubah `.env`:
+
+- **User login** dan **Tamu (belum login)**, masing-masing: *Selalu dicatat*, *Hanya di luar jam kerja*, atau
+  *Tidak dicatat*. Contoh pemantauan anomali: user login *Hanya di luar jam kerja* (perilaku user di jam kerja sudah
+  tercatat activity log/audit trail app), tamu *Selalu dicatat*.
+- **Hari kerja** (Sen–Min) dan **jam kerja** (mulai sampai sebelum selesai, zona waktu app). **Hari libur** dihitung di
+  luar jam kerja bila app mengikat kalender liburnya:
+
+  ```php
+  $this->app->singleton(\Bangsamu\VisitorCounter\Contracts\HolidayCalendar::class, MyHolidayCalendar::class);
+  ```
+
+  (`isHoliday(CarbonInterface $date): bool`, sebaiknya di-cache karena bisa dipanggil di setiap request jam kerja).
+- **Simpan (hari)**: data lebih lama dihapus otomatis setiap malam (`model:prune` 02:30, butuh scheduler); `0` = simpan
+  selamanya.
+
+Bawaannya dari config `schedule` dan `retention_days` (selalu dicatat, Sen–Jum 08:00–17:00, 180 hari). Pengaturan
+dari dashboard disimpan di `storage/framework/visitor-counter-{APP_ENV}-settings.json` (dibaca dari file, tanpa query per
+request) dan memicu event `Bangsamu\VisitorCounter\Events\SettingsUpdated` (`before`, `after`, `user`).
+
+Backup database harian ikut membengkak bila tabel log ikut di-dump: kecualikan isinya (struktur tetap ikut), mis.
+spatie/laravel-backup + MariaDB di `config/database.php` koneksi → `dump` →
+`'add_extra_option' => '--ignore-table-data='.env('DB_DATABASE').'.visitors'`. Setelah restore, tabel kosong terisi
+lagi otomatis.
+
+## Refresh berulang
+
+Request **GET** (termasuk AJAX) dengan alamat + query, status, dan user yang sama dari sesi yang sama hanya dicatat
+sekali per `repeat_window_seconds` (bawaan 60 detik, dihitung dari saat terakhir dicatat): refresh 5 kali dalam 10 detik
+= 1 baris; refresh terus-menerus = 1 baris per menit, jadi jejaknya tetap terlihat. Halaman/query lain tetap dicatat, dan
+POST/PUT/PATCH/DELETE (aksi) selalu dicatat. Penanda disimpan di session (tanpa query/cache tambahan).
+`VISITOR_COUNTER_REPEAT_WINDOW=0` = setiap request dicatat.
 
 ## Menyalakan / mematikan pencatatan
 
@@ -86,6 +122,7 @@ diganti dengan `php artisan vendor:publish --tag=visitor-counter-views`.
 | `VISITOR_COUNTER_SWITCH_PATH` | storage/framework | File penanda saklar dashboard/artisan |
 | `VISITOR_COUNTER_RETENTION_DAYS` | `180` | Umur data; `0` = simpan selamanya |
 | `VISITOR_COUNTER_RECORD_AJAX` | `true` | `false` = request AJAX/JSON tidak dicatat |
+| `VISITOR_COUNTER_REPEAT_WINDOW` | `60` | Detik; GET sama dari sesi sama dicatat sekali per jendela, `0` = mati |
 | `VISITOR_COUNTER_CLIENT_IP` | `auto` | `auto` / `server` / `browser` |
 | `VISITOR_COUNTER_INJECT_SCRIPT` | `true` | Sisipkan skrip pelapor IP otomatis |
 | `VISITOR_COUNTER_IP_LOOKUP_URL` | ipify | Layanan IP publik untuk browser (JSON `{"ip": ...}`) |
@@ -127,7 +164,8 @@ HTTP dari server (IP publik diminta browser) dan tidak ada cek skema per request
 - Middleware `CountVisitor` / `RecordVisitor` diganti `RecordVisit` (otomatis di grup `web`, bukan middleware global).
 - Tidak ada lagi pengambilan IP publik **server** dari Cloudflare/ipify: `client_ip` = IP user (server publik atau
   laporan browser), kosong bila belum diketahui.
-- Mode `unique_daily` dan jeda 10 menit per path dihapus: setiap request dicatat.
+- Mode `unique_daily` dan jeda 10 menit per path (cache) dihapus; sejak v1.2 refresh GET berulang disaring per sesi
+  (`repeat_window_seconds`, lihat Refresh berulang), aksi POST/PUT/PATCH/DELETE selalu dicatat.
 - Config dipindah dari key `Visitor-counter` ke `visitor-counter`.
 - Dashboard pindah ke `/visitor-counter` dan butuh gate `viewVisitorCounter` (dulu cukup login).
 - Tabel lama otomatis ditambah kolom `session_hash`, `method`, `query_string`, `route_name`, `status`, `duration_ms`,

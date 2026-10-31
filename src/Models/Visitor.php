@@ -2,6 +2,7 @@
 
 namespace Bangsamu\VisitorCounter\Models;
 
+use Bangsamu\VisitorCounter\Support\VisitorSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
@@ -49,13 +50,13 @@ class Visitor extends Model
     }
 
     /**
-     * Baris lebih tua dari `retention_days` (0 = tidak ada yang dihapus).
+     * Baris lebih tua dari retensi pengaturan (dashboard, bawaan config `retention_days`; 0 = tidak ada yang dihapus).
      *
      * @return Builder<static>
      */
     public function prunable(): Builder
     {
-        $days = (int) config('visitor-counter.retention_days', 0);
+        $days = app(VisitorSettings::class)->retentionDays();
         $query = static::query()->where('created_at', '<', now()->subDays(max($days, 1))->startOfDay());
 
         return $days > 0 ? $query : $query->whereRaw('1 = 0');

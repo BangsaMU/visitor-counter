@@ -14,6 +14,7 @@ if (config('visitor-counter.dashboard.enabled', true)) {
             Route::get('stats', [DashboardController::class, 'stats'])->name('stats');
             Route::get('today', [DashboardController::class, 'today'])->name('today');
             Route::post('toggle', [DashboardController::class, 'toggle'])->name('toggle');
+            Route::post('settings', [DashboardController::class, 'saveSettings'])->name('settings');
         });
 }
 

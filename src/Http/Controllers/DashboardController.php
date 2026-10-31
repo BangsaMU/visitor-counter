@@ -2,12 +2,17 @@
 
 namespace Bangsamu\VisitorCounter\Http\Controllers;
 
+use Bangsamu\VisitorCounter\Contracts\HolidayCalendar;
 use Bangsamu\VisitorCounter\Events\RecordingToggled;
+use Bangsamu\VisitorCounter\Events\SettingsUpdated;
 use Bangsamu\VisitorCounter\Models\Visitor;
 use Bangsamu\VisitorCounter\Support\DashboardLayout;
+use Bangsamu\VisitorCounter\Support\NoHolidays;
+use Bangsamu\VisitorCounter\Support\RecordingSchedule;
 use Bangsamu\VisitorCounter\Support\RecordingSwitch;
 use Bangsamu\VisitorCounter\Support\UserDirectory;
 use Bangsamu\VisitorCounter\Support\VisitFilters;
+use Bangsamu\VisitorCounter\Support\VisitorSettings;
 use Bangsamu\VisitorCounter\VisitorStats;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,10 +20,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 final class DashboardController
 {
-    public function index(Request $request, UserDirectory $users, RecordingSwitch $switch): View
+    public function index(Request $request, UserDirectory $users, RecordingSwitch $switch, VisitorSettings $settings, RecordingSchedule $schedule): View
     {
         Gate::authorize((string) config('visitor-counter.dashboard.gate', 'viewVisitorCounter'));
 
@@ -45,9 +51,10 @@ final class DashboardController
             ->limit(10)
             ->get();
 
+        // Cursor (keyset id): tanpa COUNT(*) dan OFFSET, jadi halaman berikutnya tetap cepat di tabel besar
         $visits = $query()
             ->orderByDesc('id')
-            ->paginate(max(10, (int) config('visitor-counter.dashboard.per_page', 50)))
+            ->cursorPaginate(max(10, (int) config('visitor-counter.dashboard.per_page', 50)))
             ->withQueryString();
 
         return view('visitor-counter::dashboard', [
@@ -57,6 +64,14 @@ final class DashboardController
                 'config_enabled' => $switch->configEnabled(),
                 'disabled' => $switch->disabledInfo(),
             ],
+            'recordingSettings' => $settings->all(),
+            'recordingSettingsUpdated' => $settings->updatedInfo(),
+            'recordingNow' => [
+                'work_time' => $schedule->isWorkTime(now()),
+                'users' => $schedule->allows(true),
+                'guests' => $schedule->allows(false),
+            ],
+            'holidaysAvailable' => ! app(HolidayCalendar::class) instanceof NoHolidays,
             'filters' => $filters,
             'summary' => $summary,
             'topTargets' => $topTargets,
@@ -88,6 +103,36 @@ final class DashboardController
         return $redirect->with('visitor_counter_status', $enabled
             ? 'Pencatatan visitor diaktifkan.'
             : 'Pencatatan visitor dinonaktifkan: request tidak disimpan ke database sampai diaktifkan lagi.');
+    }
+
+    /**
+     * Pengaturan pencatatan: kapan user login / tamu dicatat, jam & hari kerja, hari libur, retensi.
+     */
+    public function saveSettings(Request $request, VisitorSettings $settings, UserDirectory $users): RedirectResponse
+    {
+        Gate::authorize((string) config('visitor-counter.dashboard.gate', 'viewVisitorCounter'));
+
+        $validated = $request->validate([
+            'users' => ['required', Rule::in(VisitorSettings::MODES)],
+            'guests' => ['required', Rule::in(VisitorSettings::MODES)],
+            'work_days' => ['array'],
+            'work_days.*' => ['integer', 'between:1,7'],
+            'work_start' => ['required', 'date_format:H:i'],
+            'work_end' => ['required', 'date_format:H:i', 'after:work_start'],
+            'holidays' => ['boolean'],
+            'retention_days' => ['required', 'integer', 'between:0,3650'],
+        ]);
+
+        $before = $settings->all();
+        $user = $request->user();
+        // checkbox yang tidak dicentang tidak terkirim: tanpa hari kerja / tanpa hari libur
+        $after = $settings->save($validated + ['work_days' => [], 'holidays' => false], $users->labelFor($user));
+
+        if ($after !== $before) {
+            event(new SettingsUpdated($before, $after, $user));
+        }
+
+        return redirect()->route('visitor-counter.index')->with('visitor_counter_status', 'Pengaturan pencatatan disimpan.');
     }
 
     /**

@@ -23,6 +23,7 @@ final class ClientIpResolver
     public function __construct(
         private readonly ReportedClientIp $reported,
         private readonly RecordingSwitch $switch,
+        private readonly RecordingSchedule $schedule,
     ) {}
 
     public static function isPublic(string $ip): bool
@@ -62,7 +63,8 @@ final class ClientIpResolver
             return false;
         }
 
-        return $this->reported->isStale($request);
+        return $this->reported->isStale($request)
+            && $this->schedule->allows($request->user(config('visitor-counter.guard')) !== null);
     }
 
     /**

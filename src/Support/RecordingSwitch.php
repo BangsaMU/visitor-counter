@@ -34,7 +34,7 @@ final class RecordingSwitch
             return null;
         }
 
-        $data = json_decode((string) file_get_contents($path), true);
+        $data = JsonFile::read($path) ?? [];
 
         return [
             'at' => is_string($data['at'] ?? null) ? $data['at'] : null,
@@ -44,15 +44,7 @@ final class RecordingSwitch
 
     public function disable(?string $by = null): void
     {
-        $path = $this->path();
-        File::ensureDirectoryExists(dirname($path));
-
-        // Tulis lalu rename (atomik); 0666 supaya web server dan artisan (user berbeda) sama-sama bisa menimpa.
-        $temp = $path.'.'.bin2hex(random_bytes(4)).'.tmp';
-        file_put_contents($temp, (string) json_encode(['at' => now()->toIso8601String(), 'by' => $by], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-        chmod($temp, 0666);
-        rename($temp, $path);
-        clearstatcache(true, $path);
+        JsonFile::write($this->path(), ['at' => now()->toIso8601String(), 'by' => $by]);
     }
 
     public function enable(): void
@@ -74,8 +66,6 @@ final class RecordingSwitch
     {
         $path = config('visitor-counter.switch_path');
 
-        return is_string($path) && $path !== ''
-            ? $path
-            : storage_path('framework/visitor-counter-'.app()->environment().'-disabled.json');
+        return is_string($path) && $path !== '' ? $path : JsonFile::defaultPath('disabled');
     }
 }

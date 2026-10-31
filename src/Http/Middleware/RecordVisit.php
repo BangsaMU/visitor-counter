@@ -24,6 +24,7 @@ final class RecordVisit
         $response = $next($request);
 
         $this->recorder->measure($request);
+        $this->recorder->markRepeat($request, $response);
         $this->clientIp->injectReporter($request, $response);
 
         return $response;

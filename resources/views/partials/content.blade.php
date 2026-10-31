@@ -54,6 +54,84 @@
         </div>
     </div>
 
+    @php
+        $modeLabels = [
+            \Bangsamu\VisitorCounter\Support\VisitorSettings::ALWAYS => 'Selalu dicatat',
+            \Bangsamu\VisitorCounter\Support\VisitorSettings::OUTSIDE_WORK_HOURS => 'Hanya di luar jam kerja',
+            \Bangsamu\VisitorCounter\Support\VisitorSettings::NEVER => 'Tidak dicatat',
+        ];
+        $dayLabels = [1 => 'Sen', 2 => 'Sel', 3 => 'Rab', 4 => 'Kam', 5 => 'Jum', 6 => 'Sab', 7 => 'Min'];
+    @endphp
+    <details class="card shadow-sm mb-3" id="visitorCounterSettings" @if ($errors->any()) open @endif>
+        <summary class="card-header fw-semibold">
+            Pengaturan pencatatan
+            <span class="small fw-normal text-secondary ms-2">
+                User login: {{ $modeLabels[$recordingSettings['users']] }} · Tamu: {{ $modeLabels[$recordingSettings['guests']] }} ·
+                Simpan {{ $recordingSettings['retention_days'] > 0 ? $recordingSettings['retention_days'].' hari' : 'selamanya' }} ·
+                Sekarang {{ $recordingNow['work_time'] ? 'jam kerja' : 'di luar jam kerja' }}:
+                user {{ $recordingNow['users'] ? 'dicatat' : 'tidak dicatat' }}, tamu {{ $recordingNow['guests'] ? 'dicatat' : 'tidak dicatat' }}
+            </span>
+        </summary>
+        <form method="POST" action="{{ route('visitor-counter.settings') }}" class="card-body">
+            @csrf
+            @if ($errors->any())
+                <div class="alert alert-danger py-2">{{ $errors->first() }}</div>
+            @endif
+            <div class="row g-3">
+                @foreach (['users' => 'User login', 'guests' => 'Tamu (belum login)'] as $field => $label)
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1" for="vcSetting{{ $field }}">{{ $label }}</label>
+                        <select class="form-select form-select-sm" id="vcSetting{{ $field }}" name="{{ $field }}">
+                            @foreach ($modeLabels as $mode => $modeLabel)
+                                <option value="{{ $mode }}" @selected(old($field, $recordingSettings[$field]) === $mode)>{{ $modeLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endforeach
+                <div class="col-md-3">
+                    <span class="form-label small mb-1 d-block">Hari kerja</span>
+                    @foreach ($dayLabels as $day => $dayLabel)
+                        <div class="form-check form-check-inline me-2">
+                            <input class="form-check-input" type="checkbox" name="work_days[]" value="{{ $day }}" id="vcDay{{ $day }}"
+                                   @checked(in_array($day, array_map('intval', (array) old('work_days', $recordingSettings['work_days'])), true))>
+                            <label class="form-check-label small" for="vcDay{{ $day }}">{{ $dayLabel }}</label>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small mb-1" for="vcWorkStart">Mulai</label>
+                    <input type="time" class="form-control form-control-sm" id="vcWorkStart" name="work_start" value="{{ old('work_start', $recordingSettings['work_start']) }}" required>
+                </div>
+                <div class="col-6 col-md-1">
+                    <label class="form-label small mb-1" for="vcWorkEnd">Selesai</label>
+                    <input type="time" class="form-control form-control-sm" id="vcWorkEnd" name="work_end" value="{{ old('work_end', $recordingSettings['work_end']) }}" required>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1" for="vcRetention">Simpan (hari)</label>
+                    <input type="number" min="0" max="3650" class="form-control form-control-sm" id="vcRetention" name="retention_days" value="{{ old('retention_days', $recordingSettings['retention_days']) }}" required>
+                </div>
+            </div>
+            <div class="form-check mt-2">
+                <input type="hidden" name="holidays" value="0">
+                <input class="form-check-input" type="checkbox" name="holidays" value="1" id="vcHolidays" @checked((bool) old('holidays', $recordingSettings['holidays']))>
+                <label class="form-check-label small" for="vcHolidays">
+                    Hari libur dihitung di luar jam kerja
+                    @unless ($holidaysAvailable)
+                        <span class="text-secondary">(app belum menyediakan kalender libur, jadi tidak berpengaruh)</span>
+                    @endunless
+                </label>
+            </div>
+            <p class="small text-secondary mt-2 mb-2">
+                Jam kerja = hari kerja yang dicentang, pukul mulai sampai sebelum selesai (zona waktu {{ config('app.timezone') }}).
+                "Simpan (hari)" = data lebih lama dihapus otomatis setiap malam; 0 = simpan selamanya.
+                @if ($recordingSettingsUpdated)
+                    Terakhir diubah {{ $recordingSettingsUpdated['at'] ? \Illuminate\Support\Carbon::parse($recordingSettingsUpdated['at'])->format('d-m-Y H:i') : '' }}{{ $recordingSettingsUpdated['by'] ? ' oleh '.$recordingSettingsUpdated['by'] : '' }}.
+                @endif
+            </p>
+            <button type="submit" class="btn btn-primary btn-sm">Simpan pengaturan</button>
+        </form>
+    </details>
+
     <form method="GET" class="card shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-2 align-items-end">
@@ -227,7 +305,7 @@
         </div>
         @if ($visits->hasPages())
             <div class="card-footer">
-                {{ $visits->links('pagination::bootstrap-5') }}
+                {{ $visits->links('pagination::simple-bootstrap-5') }}
             </div>
         @endif
     </div>

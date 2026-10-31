@@ -21,17 +21,23 @@ abstract class TestCase extends Orchestra
 
     protected string $switchPath;
 
+    protected string $settingsPath;
+
     protected function tearDown(): void
     {
         @unlink($this->switchPath);
+        @unlink($this->settingsPath);
 
         parent::tearDown();
     }
 
     protected function defineEnvironment($app): void
     {
-        $this->switchPath = sys_get_temp_dir().'/visitor-counter-test-'.bin2hex(random_bytes(6)).'.json';
+        $prefix = sys_get_temp_dir().'/visitor-counter-test-'.bin2hex(random_bytes(6));
+        $this->switchPath = $prefix.'-disabled.json';
+        $this->settingsPath = $prefix.'-settings.json';
         $app['config']->set('visitor-counter.switch_path', $this->switchPath);
+        $app['config']->set('visitor-counter.settings_path', $this->settingsPath);
         $app['config']->set('database.default', 'testing');
         $app['config']->set('cache.default', 'array');
         $app['config']->set('session.driver', 'array');

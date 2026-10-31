@@ -40,6 +40,33 @@ final class RecordVisitTest extends TestCase
         );
     }
 
+    public function test_refreshing_the_same_page_is_recorded_once_per_window(): void
+    {
+        $this->get('/halaman')->assertOk();
+        $this->get('/halaman')->assertOk();
+        $this->getJson('/halaman')->assertOk();
+        $this->assertSame(1, Visitor::query()->count());
+
+        $this->get('/halaman?tab=lain')->assertOk();
+        $this->assertSame(2, Visitor::query()->count(), 'Query berbeda = halaman berbeda');
+
+        $this->travel(61)->seconds();
+        $this->get('/halaman')->assertOk();
+        $this->assertSame(3, Visitor::query()->count(), 'Setelah jendela lewat dicatat lagi');
+    }
+
+    public function test_repeated_actions_and_disabled_window_are_always_recorded(): void
+    {
+        $this->postJson('/simpan')->assertOk();
+        $this->postJson('/simpan')->assertOk();
+        $this->assertSame(2, Visitor::query()->count());
+
+        config(['visitor-counter.repeat_window_seconds' => 0]);
+        $this->get('/halaman')->assertOk();
+        $this->get('/halaman')->assertOk();
+        $this->assertSame(4, Visitor::query()->count());
+    }
+
     public function test_excluded_routes_and_methods_are_not_recorded(): void
     {
         $this->get('/session/status')->assertOk();

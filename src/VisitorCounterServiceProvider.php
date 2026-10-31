@@ -5,13 +5,17 @@ namespace Bangsamu\VisitorCounter;
 use Bangsamu\VisitorCounter\Console\DisableCommand;
 use Bangsamu\VisitorCounter\Console\EnableCommand;
 use Bangsamu\VisitorCounter\Console\SyncSchemaCommand;
+use Bangsamu\VisitorCounter\Contracts\HolidayCalendar;
 use Bangsamu\VisitorCounter\Http\Middleware\RecordVisit;
 use Bangsamu\VisitorCounter\Models\Visitor;
 use Bangsamu\VisitorCounter\Support\ClientIpResolver;
+use Bangsamu\VisitorCounter\Support\NoHolidays;
+use Bangsamu\VisitorCounter\Support\RecordingSchedule;
 use Bangsamu\VisitorCounter\Support\RecordingSwitch;
 use Bangsamu\VisitorCounter\Support\ReportedClientIp;
 use Bangsamu\VisitorCounter\Support\UserDirectory;
 use Bangsamu\VisitorCounter\Support\VisitorSchema;
+use Bangsamu\VisitorCounter\Support\VisitorSettings;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
@@ -31,6 +35,9 @@ class VisitorCounterServiceProvider extends ServiceProvider
 
         $this->app->singleton(VisitorSchema::class);
         $this->app->singleton(RecordingSwitch::class);
+        $this->app->singleton(VisitorSettings::class);
+        $this->app->singleton(RecordingSchedule::class);
+        $this->app->singletonIf(HolidayCalendar::class, NoHolidays::class);
         $this->app->singleton(ReportedClientIp::class);
         $this->app->singleton(ClientIpResolver::class);
         $this->app->singleton(UserDirectory::class);
@@ -105,7 +112,8 @@ class VisitorCounterServiceProvider extends ServiceProvider
     private function registerSchedule(): void
     {
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            if ((int) config('visitor-counter.retention_days', 0) <= 0 || ! config('visitor-counter.prune.schedule', true)) {
+            // Retensi bisa diubah dari dashboard: prune selalu dijadwalkan, retensi 0 = tidak ada yang dihapus
+            if (! config('visitor-counter.prune.schedule', true)) {
                 return;
             }
 

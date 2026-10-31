@@ -50,6 +50,31 @@ final class DashboardTest extends TestCase
             ->assertJsonPath('days.0.unique_users', 1);
     }
 
+    public function test_visit_list_uses_cursor_pagination(): void
+    {
+        Gate::define('viewVisitorCounter', fn (): bool => true);
+        $user = UserFactory::new()->create();
+        DB::table('visitors')->insert(collect(range(1, 12))->map(fn (int $i): array => [
+            'path' => 'hal-'.$i,
+            'ip' => '10.0.0.1',
+            'visit_date' => today()->toDateString(),
+            'created_at' => now(),
+            'is_ajax' => false,
+        ])->all());
+        config(['visitor-counter.dashboard.per_page' => 10]);
+
+        $html = (string) $this->actingAs($user)->get('/visitor-counter')->assertOk()->getContent();
+        preg_match('/href="([^"]*cursor=[^"]*)"/', $html, $next);
+
+        $this->assertNotEmpty($next, 'Link halaman berikutnya memakai cursor');
+        $this->assertStringContainsString('/hal-12', $html);
+        $this->assertStringNotContainsString('/hal-1<', $html);
+
+        $this->actingAs($user)->get(html_entity_decode($next[1]))
+            ->assertOk()
+            ->assertSee('/hal-1');
+    }
+
     public function test_facade_counts_and_retention_prune(): void
     {
         config(['visitor-counter.retention_days' => 30]);

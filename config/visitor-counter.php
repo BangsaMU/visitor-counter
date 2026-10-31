@@ -41,6 +41,13 @@ return [
     /* false = request AJAX/JSON (DataTables, select2, polling) tidak dicatat */
     'record_ajax' => (bool) env('VISITOR_COUNTER_RECORD_AJAX', true),
 
+    /*
+     * Refresh berulang: GET (termasuk AJAX) dengan alamat + query, status, dan user yang sama dari sesi yang sama dicatat
+     * sekali per sekian detik (dihitung dari saat terakhir dicatat). POST/PUT/PATCH/DELETE selalu dicatat. Penanda
+     * disimpan di session, tanpa query/cache tambahan. 0 = setiap request dicatat.
+     */
+    'repeat_window_seconds' => (int) env('VISITOR_COUNTER_REPEAT_WINDOW', 60),
+
     'except' => [
         /* Pola $request->is() */
         'paths' => ['_debugbar/*', 'telescope', 'telescope/*', 'horizon/*', 'livewire/*', 'up', 'favicon.ico', 'robots.txt'],
@@ -52,8 +59,29 @@ return [
     /* Parameter query yang tidak ikut disimpan (huruf besar/kecil diabaikan) */
     'hidden_query_keys' => ['password', 'password_confirmation', 'token', '_token', 'signature', 'secret', 'api_key', 'access_token'],
 
-    /* Baris lebih tua dari sekian hari dihapus `model:prune` terjadwal. 0 = simpan selamanya. */
+    /*
+     * Baris lebih tua dari sekian hari dihapus `model:prune` terjadwal. 0 = simpan selamanya. Bawaan; bisa diubah dari
+     * dashboard (Pengaturan pencatatan).
+     */
     'retention_days' => (int) env('VISITOR_COUNTER_RETENTION_DAYS', 180),
+
+    /*
+     * Jadwal pencatatan bawaan; bisa diubah dari dashboard (disimpan di `settings_path`). Mode `users` (sudah login) dan
+     * `guests` (belum login): always | outside_work_hours | never. Jam kerja = `work_days` (ISO, 1 = Senin) pukul
+     * `work_start`–`work_end` (zona waktu app), bukan hari libur bila `holidays` = true (kalender dari binding
+     * \Bangsamu\VisitorCounter\Contracts\HolidayCalendar milik app; bawaan tanpa hari libur).
+     */
+    'schedule' => [
+        'users' => env('VISITOR_COUNTER_USERS', 'always'),
+        'guests' => env('VISITOR_COUNTER_GUESTS', 'always'),
+        'work_days' => [1, 2, 3, 4, 5],
+        'work_start' => env('VISITOR_COUNTER_WORK_START', '08:00'),
+        'work_end' => env('VISITOR_COUNTER_WORK_END', '17:00'),
+        'holidays' => true,
+    ],
+
+    /* File pengaturan dari dashboard. null = storage/framework/visitor-counter-{APP_ENV}-settings.json */
+    'settings_path' => env('VISITOR_COUNTER_SETTINGS_PATH'),
 
     'prune' => [
         'schedule' => true,
