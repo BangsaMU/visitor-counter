@@ -1,28 +1,26 @@
 <?php
 
+use Bangsamu\VisitorCounter\Support\VisitorSchema;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+/**
+ * Buat tabel visitor bila belum ada, atau lengkapi kolom/index tabel yang sudah ada (buatan app atau v0.0.x), jadi
+ * tidak gagal "Table already exists".
+ */
+return new class extends Migration
+{
+    public function getConnection(): ?string
+    {
+        return app(VisitorSchema::class)->connection();
+    }
+
     public function up(): void
     {
-        Schema::create('visitors', function (Blueprint $table) {
-                $table->id();
-                $table->string('ip', 45);
-                $table->date('visit_date');
-                $table->unsignedBigInteger('user_id')->nullable();
-                $table->string('user_agent')->nullable();
-                $table->string('path')->nullable();
-                $table->string('referer')->nullable();
-                $table->timestamps();
-
-                $table->index(['visit_date', 'ip']);
-        });
+        app(VisitorSchema::class)->sync();
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('visitors');
+        // Sengaja kosong: tabel bisa milik app dan berisi log kunjungan, rollback paket tidak menghapusnya.
     }
 };

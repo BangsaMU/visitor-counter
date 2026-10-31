@@ -2,42 +2,77 @@
 
 namespace Bangsamu\VisitorCounter\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 
+/**
+ * Satu baris = satu request web yang dicatat RecordVisit. Tabel/koneksi dari config `visitor-counter`.
+ *
+ * @property int $id
+ * @property Carbon|null $visit_date
+ * @property int|null $user_id
+ * @property string|null $session_hash
+ * @property string|null $method
+ * @property string|null $path
+ * @property string|null $query_string
+ * @property string|null $route_name
+ * @property int|null $status
+ * @property int|null $duration_ms
+ * @property bool $is_ajax
+ * @property string|null $ip
+ * @property string|null $client_ip
+ * @property string|null $client_ip_source
+ * @property string|null $user_agent
+ * @property string|null $referer
+ * @property Carbon|null $created_at
+ */
 class Visitor extends Model
 {
-    protected $fillable = [
-        'ip', 'user_agent', 'path', 'visit_date','user_id','referer'
-    ];
+    use MassPrunable;
 
+    public const UPDATED_AT = null;
 
-    protected $table = "visitors";
-    protected static $hasCheckedTable = false;
+    protected $guarded = ['id'];
 
-    protected static function boot()
+    public function getTable(): string
     {
-        parent::boot();
+        return (string) config('visitor-counter.table', 'visitors');
+    }
 
-        if (!self::$hasCheckedTable) {
-            self::$hasCheckedTable = true;
+    public function getConnectionName(): ?string
+    {
+        $connection = config('visitor-counter.connection');
 
-            if (!Schema::hasTable((new static)->getTable())) {
-                Schema::create((new static)->getTable(), function (Blueprint $table) {
+        return is_string($connection) && $connection !== '' ? $connection : parent::getConnectionName();
+    }
 
-                    $table->id();
-                    $table->string('ip', 45);
-                    $table->date('visit_date');
-                    $table->unsignedBigInteger('user_id')->nullable();
-                    $table->string('user_agent')->nullable();
-                    $table->string('path')->nullable();
-                    $table->string('referer')->nullable();
-                    $table->timestamps();
+    /**
+     * Baris lebih tua dari `retention_days` (0 = tidak ada yang dihapus).
+     *
+     * @return Builder<static>
+     */
+    public function prunable(): Builder
+    {
+        $days = (int) config('visitor-counter.retention_days', 0);
+        $query = static::query()->where('created_at', '<', now()->subDays(max($days, 1))->startOfDay());
 
-                    $table->index(['visit_date', 'ip']);
-                });
-            }
-        }
+        return $days > 0 ? $query : $query->whereRaw('1 = 0');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'visit_date' => 'date',
+            'user_id' => 'integer',
+            'status' => 'integer',
+            'duration_ms' => 'integer',
+            'is_ajax' => 'boolean',
+            'created_at' => 'datetime',
+        ];
     }
 }

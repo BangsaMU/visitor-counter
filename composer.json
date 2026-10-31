@@ -1,11 +1,29 @@
 {
     "name": "bangsamu/visitor-counter",
-    "description": "Simple Laravel visitor counter package",
+    "description": "Pencatat semua request web Laravel 13: siapa membuka apa, kapan, berapa lama, dan dari IP mana (termasuk IP dari browser bila server di belakang NAT)",
     "type": "library",
     "license": "MIT",
+    "keywords": ["laravel", "visitor", "tracking", "audit", "ip"],
+    "require": {
+        "php": "^8.3",
+        "illuminate/console": "^13.0",
+        "illuminate/database": "^13.0",
+        "illuminate/http": "^13.0",
+        "illuminate/routing": "^13.0",
+        "illuminate/support": "^13.0",
+        "illuminate/view": "^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^11.0"
+    },
     "autoload": {
         "psr-4": {
             "Bangsamu\\VisitorCounter\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bangsamu\\VisitorCounter\\Tests\\": "tests/"
         }
     },
     "extra": {
@@ -18,8 +36,15 @@
             }
         }
     },
-    "require": {
-        "php": ">=8.0",
-        "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0"
-    }
+    "authors": [
+        {
+            "name": "infomediaku.com",
+            "email": "hatur.cms@gmail.com"
+        }
+    ],
+    "scripts": {
+        "test": "phpunit"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }
